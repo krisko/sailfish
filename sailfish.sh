@@ -37,21 +37,24 @@ NOTE
 EOF
 }
 
-echo $(stc 1)farbicky $(stc 2)farbicky  $(stc 3)farbicky  $(stc 4)farbicky  $(stc 5)farbicky  $(stc 6)farbicky  $(stc 7)farbicky  $(stc R)farbicky   
-
 setColor() {
     case $1 in
-        red)   COLOR="#cc0000";;
-        green) COLOR="#00cc00";;
-        blue)  COLOR="#0000cc";;
-        *)     unset COLOR;;
+        black)   COLOR="#000000";;
+        red)     COLOR="#cc0000";;
+        green)   COLOR="#00cc00";;
+        yellow)  COLOR="#cccc00";;
+        blue)    COLOR="#0000cc";;
+        magenta) COLOR="#cc00cc";;
+        cyan)    COLOR="#00cccc";;
+        white)   COLOR="#ffffff";;
+        *) unset COLOR;;
     esac
 }
 
 
 chColor() {
     echo "Choose color: ";
-    select COLOR in red green blue; do
+    select COLOR in black red green yellow blue magenta cyan white; do
         setColor $COLOR
         break
     done;
@@ -73,10 +76,15 @@ addNote() {
         $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
         $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
         NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
+    ssh $USER@$IP "\
+        $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
+        $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
+        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
 }
 
 listNotes() {
 # sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite  "select color,pagenr,body from notes ORDER by pagenr ASC" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/'
+:
 }
 
 #########
