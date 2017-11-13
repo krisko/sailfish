@@ -116,7 +116,7 @@ listN() {
     # if we have specific ID list only that
     [[ $1 =~ ^[0-9]+$ ]] &&
     ssh $USER@$IP "\
-        $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/' > $LSN ||
+        $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";"     | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/' > $LSN ||
     ssh $USER@$IP "\
         $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/' > $LSN
 
@@ -209,6 +209,7 @@ exit 0
 # 0.1.0 20171110 # krisko  # Prototype, first working function - add
 # 1.0.0 20171113 # krisko  # Implemented all basic functions
 # 1.0.1 20171113 # krisko  # Fixed wrong variable name
+# 1.0.2 20171113 # krisko  # Fixed coloring when removing note or listing by ID
 ##############################################
 # NOTES
 ##############################################
