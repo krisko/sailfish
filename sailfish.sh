@@ -1,7 +1,7 @@
 #!/bin/bash
 ##################################################
 # Author:       KrisKo 2017
-# Description:  Script for handling jolla notes via ssh coneection
+# Description:  Script for handling jolla notes via ssh connection
 # See usage for more details
 ##################################################
 
