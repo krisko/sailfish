@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#ssh nemo@192.168.1.234 "sqlite3 /home/nemo/.local/share/jolla-notes/QML/OfflineStorage/Databases/8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite \"insert into notes values ((select 1+(select pagenr from notes order by pagenr DESC limit 1)),'#abcabc','new note');\"; NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
-
 USER="nemo"
 IP=192.168.1.234
 SQL="sqlite3"
@@ -26,9 +24,10 @@ cat << EOF
 USAGE $0 (ACTION) [COLOR|ID] [NOTE]
 
 ACTIONS
-  add     adds new note, with optional color and note from CMD
-  list    list all notes or note by ID
-  del     delete note by ID
+  add      adds new note, with optional color and note from CMD
+  list|ls  list all notes or note by ID
+  del|rm   delete note by ID
+  move|mv  move note to defined possition
 
 COLOR
   Valid colors: $(stc 0)black $(stc 1)red $(stc 2)green $(stc 3)yellow $(stc 4)blue $(stc 5)magenta $(stc 6)cyan $(stc 7)white $(stc R)reset
@@ -45,6 +44,16 @@ msg() {
     SEV=$(echo -e "$1" | tr [:lower:] [:upper:])
     echo "$SEV": "$2"
     [[ "$SEV" == "ERROR" || "$SEV" == "FATAL" ]] && exit 1
+}
+
+w8() {
+    secs=$1
+    echo
+    while [ $secs -gt 0 ]; do
+        echo -ne "Removing note in $secs...\033[0K\r"
+        sleep 1
+        : $((secs--))
+    done
 }
 
 # set color code based on user input
@@ -72,11 +81,7 @@ chColor() {
     done;
 }
 
-
-
-#ssh $USER@$IP "$SQL $DB \"insert into notes values ((select 1+(select pagenr from notes order by pagenr DESC limit 1)),'#abcabc','$NOTE');\"; \
-#    NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
-
+# add new note
 addN() {
     # detect if we have color from param
     [[ -n $1 ]] && setColor $1
@@ -84,10 +89,6 @@ addN() {
     # take the note
     [[ -n $1 ]] && NOTE="$@" || read -p "Enter note: " NOTE
 
-#    echo ssh $USER@$IP "\
-#        $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
-#        $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
-#        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
     ssh $USER@$IP "\
         $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
         $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
@@ -96,28 +97,47 @@ addN() {
 
 # list notes from the phone
 listN() {
-    # if we have specific number list only that
+    # if we have specific ID list only that
     [[ $1 =~ ^[0-9]+$ ]] &&
     ssh $USER@$IP "\
         $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/' ||
     ssh $USER@$IP "\
-        $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/'
+        $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/'
 }
 
 # delete note by ID
 delN() {
-# delete by ID
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "delete from notes where pagenr=2"
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "update notes SET pagenr=pagenr-1 WHERE pagenr > 2;"
-
     # confirm deletion by ID
     [[ $1 =~ ^[0-9]+$ ]] &&
-        listNote $1 ||
+        listN $1 ||
         msg error "Invalid ID"
-exit 4
+    # wait befor deleting
+    w8 5
+
     ssh $USER@$IP "\
         $SQL $DB \"delete from notes where pagenr=$1;\"; \
-        $SQL $DB \"update notes SET pagenr=pagenr-1 WHERE pagenr > $1;\";"
+        $SQL $DB \"update notes SET pagenr=pagenr-1 WHERE pagenr > $1;\"; \
+        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
+}
+
+# move note from posiion to new possition
+moveN() {
+    [[ $1 =~ ^[0-9]+$ ]] && [[ $2 =~ ^[0-9]+$ ]] || msg error "Invalid ID"
+    [[ $1 -eq $2 ]] && msg info "Nothing to do." && exit 0
+    # check if note exists
+    [[ -n "$(listN $1)" ]] || msg error "Note with ID=$1 not found."
+    [[ $1 -lt $2 ]] &&
+        ssh $USER@$IP "\
+            $SQL $DB \"update notes SET pagenr=1000 WHERE pagenr=$1;\"; \
+            $SQL $DB \"update notes SET pagenr=pagenr-1 WHERE pagenr > $1 AND pagenr <= $2;\"; \
+            $SQL $DB \"update notes SET pagenr=$2 WHERE pagenr=1000;\"; \
+            NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
+    [[ $1 -gt $2 ]] &&
+        ssh $USER@$IP "\
+            $SQL $DB \"update notes SET pagenr=1000 WHERE pagenr=$1;\"; \
+            $SQL $DB \"update notes SET pagenr=pagenr+1 WHERE pagenr < $1 AND pagenr >= $2;\"; \
+            $SQL $DB \"update notes SET pagenr=$2 WHERE pagenr=1000;\"; \
+            NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
 }
 
 #########
@@ -125,10 +145,11 @@ exit 4
 #########
 
 case $1 in
-    add)  shift 1; addN $@;;
-    list) listN $2;;
-    del)  delN $2;;
-    *  ) usage;;
+        add) shift 1; addN $@;;
+    list|ls) listN $2;;
+     del|rm) delN $2;;
+    move|mv) moveN $2 $3;;
+         * ) usage;;
 esac
 
 exit 0
