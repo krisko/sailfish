@@ -29,7 +29,7 @@ setColor() {
         GREEN='\033[42m'  \
         YELLOW='\033[43m' \
         BLUE='\033[44m'   \
-        PURPLE='\033[45m' \
+        MAGENTA='\033[45m' \
         CYAN='\033[46m'   \
         WHITE='\033[47m'  \
         NC='\033[0m'       ||
@@ -129,7 +129,7 @@ listN() {
         -e 's/\#cc00cc|\([0-9]:\)/\\\'$MAGENTA'\1\\\'$NC'/' \
         -e 's/\#00cccc|\([0-9]:\)/\\\'$CYAN'\1\\\'$NC'/'    \
         -e 's/\#ffffff|\([0-9]:\)/\\\'$WHITE'\1\\\'$NC'/'   \
-        -e 's/\#.*|\([0-9]:\)/\1/' $LSN > $NTC
+        -e 's/^\#.*|\([0-9]:\)/\1/' $LSN > $NTC
 
     rm $LSN
     while read note; do
@@ -208,6 +208,7 @@ exit 0
 # 0.0.1 20171109 # krisko  # Idea, sketch
 # 0.1.0 20171110 # krisko  # Prototype, first working function - add
 # 1.0.0 20171113 # krisko  # Implemented all basic functions
+# 1.0.1 20171113 # krisko  # Fixed wrong variable name
 ##############################################
 # NOTES
 ##############################################
