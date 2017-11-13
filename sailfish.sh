@@ -42,7 +42,9 @@ EOF
 
 # message system
 msg() {
-
+    SEV=$(echo -e "$1" | tr [:lower:] [:upper:])
+    echo "$SEV": "$2"
+    [[ "$SEV" == "ERROR" || "$SEV" == "FATAL" ]] && exit 1
 }
 
 # set color code based on user input
