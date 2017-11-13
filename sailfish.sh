@@ -1,25 +1,55 @@
 #!/bin/bash
+##################################################
+# Author:       KrisKo 2017
+# Description:  Script for handling jolla notes via ssh coneection
+# See usage for more details
+##################################################
 
+############
+# VARIABLES
+############
 USER="nemo"
 IP=192.168.1.234
 SQL="sqlite3"
 DB="/home/nemo/.local/share/jolla-notes/QML/OfflineStorage/Databases/8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite"
+# tmp file for listNotes
+LSN=/tmp/notes.$$.tmp
+# tmp file for color output
+NTC=/tmp/notesc.$$.tmp
 
-stc() {
+############
+# FUNCTIONS
+############
+
+# set color code based on user input
+setColor() {
+    [[ $1 == "ls" ]] && 
+        BLACK='\033[40m'  \
+        RED='\033[41m'    \
+        GREEN='\033[42m'  \
+        YELLOW='\033[43m' \
+        BLUE='\033[44m'   \
+        PURPLE='\033[45m' \
+        CYAN='\033[46m'   \
+        WHITE='\033[47m'  \
+        NC='\033[0m'       ||
     case $1 in
-        0) tput setaf 0;; #black
-        1) tput setaf 1;; #red
-        2) tput setaf 2;; #green
-        3) tput setaf 3;; #yellow
-        4) tput setaf 4;; #blue
-        5) tput setaf 5;; #magenta
-        6) tput setaf 6;; #cyan
-        7) tput setaf 7;; #white
-        R) tput sgr0;;
+        black)   COLOR="#000000";;
+        red)     COLOR="#cc0000";;
+        green)   COLOR="#00cc00";;
+        yellow)  COLOR="#cccc00";;
+        blue)    COLOR="#0000cc";;
+        magenta) COLOR="#cc00cc";;
+        cyan)    COLOR="#00cccc";;
+        white)   COLOR="#ffffff";;
+        pick)    COLOR=$(kcolorchooser --print);;
+        *) unset COLOR;;
     esac
 }
 
+# show usage
 usage() {
+setColor ls
 cat << EOF
 USAGE $0 (ACTION) [COLOR|ID] [NOTE]
 
@@ -28,9 +58,10 @@ ACTIONS
   list|ls  list all notes or note by ID
   del|rm   delete note by ID
   move|mv  move note to defined possition
+  ccol|cc  change color of the note by ID
 
 COLOR
-  Valid colors: $(stc 0)black $(stc 1)red $(stc 2)green $(stc 3)yellow $(stc 4)blue $(stc 5)magenta $(stc 6)cyan $(stc 7)white $(stc R)reset
+  Valid colors: $(echo -e $BLACK BLACK $RED RED $GREEN GREEN $YELLOW YELLOW $BLUE BLUE $MAGENTA MAGENTA $CYAN CYAN $WHITE WHITE $NC)
   Or you can use option "pick" to launch color picker, to select custom color
 
 NOTE
@@ -46,6 +77,7 @@ msg() {
     [[ "$SEV" == "ERROR" || "$SEV" == "FATAL" ]] && exit 1
 }
 
+# delaying function
 w8() {
     secs=$1
     echo
@@ -54,22 +86,6 @@ w8() {
         sleep 1
         : $((secs--))
     done
-}
-
-# set color code based on user input
-setColor() {
-    case $1 in
-        black)   COLOR="#000000";;
-        red)     COLOR="#cc0000";;
-        green)   COLOR="#00cc00";;
-        yellow)  COLOR="#cccc00";;
-        blue)    COLOR="#0000cc";;
-        magenta) COLOR="#cc00cc";;
-        cyan)    COLOR="#00cccc";;
-        white)   COLOR="#ffffff";;
-        pick)    COLOR=$(kcolorchooser --print);;
-        *) unset COLOR;;
-    esac
 }
 
 # interactively choose color
@@ -100,9 +116,26 @@ listN() {
     # if we have specific ID list only that
     [[ $1 =~ ^[0-9]+$ ]] &&
     ssh $USER@$IP "\
-        $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/' ||
+        $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/' > $LSN ||
     ssh $USER@$IP "\
-        $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/'
+        $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/' > $LSN
+
+    setColor ls
+    sed -e 's/\#000000|\([0-9]:\)/\\\'$BLACK'\1\\\'$NC'/'   \
+        -e 's/\#cc0000|\([0-9]:\)/\\\'$RED'\1\\\'$NC'/'     \
+        -e 's/\#00cc00|\([0-9]:\)/\\\'$GREEN'\1\\\'$NC'/'   \
+        -e 's/\#cccc00|\([0-9]:\)/\\\'$YELLOW'\1\\\'$NC'/'  \
+        -e 's/\#0000cc|\([0-9]:\)/\\\'$BLUE'\1\\\'$NC'/'    \
+        -e 's/\#cc00cc|\([0-9]:\)/\\\'$MAGENTA'\1\\\'$NC'/' \
+        -e 's/\#00cccc|\([0-9]:\)/\\\'$CYAN'\1\\\'$NC'/'    \
+        -e 's/\#ffffff|\([0-9]:\)/\\\'$WHITE'\1\\\'$NC'/'   \
+        -e 's/\#.*|\([0-9]:\)/\1/' $LSN > $NTC
+
+    rm $LSN
+    while read note; do
+        echo -e $note;
+    done < $NTC
+    rm $NTC
 }
 
 # delete note by ID
@@ -140,6 +173,20 @@ moveN() {
             NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
 }
 
+# change note color
+noteC() {
+    [[ $1 =~ ^[0-9]+$ ]] || msg error "Invalid ID"
+    # check if note exists
+    [[ -n "$(listN $1)" ]] || msg error "Note with ID=$1 not found."
+    # detect if we have color from param
+    [[ -n $2 ]] && setColor $2
+    [[ -n $COLOR ]] || chColor
+
+    ssh $USER@$IP "\
+        $SQL $DB \"update notes SET color='$COLOR' WHERE pagenr=$1;\"; \
+        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
+}
+
 #########
 # BEGIN
 #########
@@ -149,26 +196,22 @@ case $1 in
     list|ls) listN $2;;
      del|rm) delN $2;;
     move|mv) moveN $2 $3;;
+    ccol|cc) noteC $2 $3;;
          * ) usage;;
 esac
 
 exit 0
 
-#TODO
-# list notes, delete notes, move notes, insert note to 1st possition
-
-# INC DEC pagenr
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "update notes SET pagenr=pagenr+1;"
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "update notes SET pagenr=pagenr-1;"
-
+##############################################
+# TODO/ChangeLog # Author  # Description #
+##############################################
+# 0.0.1 20171109 # krisko  # Idea, sketch
+# 0.1.0 20171110 # krisko  # Prototype, first working function - add
+# 1.0.0 20171113 # krisko  # Implemented all basic functions
+##############################################
+# NOTES
+##############################################
 # list DB schema
 # $ sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite ".schema notes"
 # CREATE TABLE notes (pagenr INTEGER, color TEXT, body TEXT);
-
-# delete by ID
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "delete from notes where pagenr=2"
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "update notes SET pagenr=pagenr-1 WHERE pagenr > 2;"
-
-# change color with sed
-# echo -e `sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite  "select color,pagenr,body from notes" | sed 's/#cc7700\\(|[0-9]|\\)/\\\033\\[0\\;31m\1\\\033\\[0m/g'`
-
+##############################################
