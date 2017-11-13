@@ -23,13 +23,16 @@ stc() {
 
 usage() {
 cat << EOF
-USAGE $0 (ACTION) [COLOR] [NOTE]
+USAGE $0 (ACTION) [COLOR|ID] [NOTE]
 
 ACTIONS
-  add     adds new note
+  add     adds new note, with optional color and note from CMD
+  list    list all notes or note by ID
+  del     delete note by ID
 
 COLOR
   Valid colors: $(stc 0)black $(stc 1)red $(stc 2)green $(stc 3)yellow $(stc 4)blue $(stc 5)magenta $(stc 6)cyan $(stc 7)white $(stc R)reset
+  Or you can use option "pick" to launch color picker, to select custom color
 
 NOTE
   text    text which will be set
@@ -37,6 +40,12 @@ NOTE
 EOF
 }
 
+# message system
+msg() {
+
+}
+
+# set color code based on user input
 setColor() {
     case $1 in
         black)   COLOR="#000000";;
@@ -47,11 +56,12 @@ setColor() {
         magenta) COLOR="#cc00cc";;
         cyan)    COLOR="#00cccc";;
         white)   COLOR="#ffffff";;
+        pick)    COLOR=$(kcolorchooser --print);;
         *) unset COLOR;;
     esac
 }
 
-
+# interactively choose color
 chColor() {
     echo "Choose color: ";
     select COLOR in black red green yellow blue magenta cyan white; do
@@ -65,26 +75,47 @@ chColor() {
 #ssh $USER@$IP "$SQL $DB \"insert into notes values ((select 1+(select pagenr from notes order by pagenr DESC limit 1)),'#abcabc','$NOTE');\"; \
 #    NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
 
-addNote() {
+addN() {
     # detect if we have color from param
     [[ -n $1 ]] && setColor $1
     [[ -n $COLOR ]] && shift 1 || chColor
     # take the note
     [[ -n $1 ]] && NOTE="$@" || read -p "Enter note: " NOTE
 
-    echo ssh $USER@$IP "\
-        $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
-        $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
-        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
+#    echo ssh $USER@$IP "\
+#        $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
+#        $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
+#        NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
     ssh $USER@$IP "\
         $SQL $DB \"update notes SET pagenr=pagenr+1;\"; \
         $SQL $DB \"insert into notes values (1,'$COLOR','$NOTE');\"; \
         NOTEPID=\$(pgrep jolla-notes) && [[ -n \$NOTEPID ]] && kill -1 \$NOTEPID"
 }
 
-listNotes() {
-# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite  "select color,pagenr,body from notes ORDER by pagenr ASC" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/'
-:
+# list notes from the phone
+listN() {
+    # if we have specific number list only that
+    [[ $1 =~ ^[0-9]+$ ]] &&
+    ssh $USER@$IP "\
+        $SQL $DB \"select color,pagenr,body from notes WHERE pagenr=$1;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/' ||
+    ssh $USER@$IP "\
+        $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/^.*|\([0-9]*\)|/\n\r\1:\n\r/'
+}
+
+# delete note by ID
+delN() {
+# delete by ID
+# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "delete from notes where pagenr=2"
+# sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite "update notes SET pagenr=pagenr-1 WHERE pagenr > 2;"
+
+    # confirm deletion by ID
+    [[ $1 =~ ^[0-9]+$ ]] &&
+        listNote $1 ||
+        msg error "Invalid ID"
+exit 4
+    ssh $USER@$IP "\
+        $SQL $DB \"delete from notes where pagenr=$1;\"; \
+        $SQL $DB \"update notes SET pagenr=pagenr-1 WHERE pagenr > $1;\";"
 }
 
 #########
@@ -92,7 +123,9 @@ listNotes() {
 #########
 
 case $1 in
-    add) shift 1; addNote $@;;
+    add)  shift 1; addN $@;;
+    list) listN $2;;
+    del)  delN $2;;
     *  ) usage;;
 esac
 
