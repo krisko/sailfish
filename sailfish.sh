@@ -129,7 +129,7 @@ listN() {
         -e 's/\#cc00cc|\([0-9]:\)/\\\'$MAGENTA'\1\\\'$NC'/' \
         -e 's/\#00cccc|\([0-9]:\)/\\\'$CYAN'\1\\\'$NC'/'    \
         -e 's/\#ffffff|\([0-9]:\)/\\\'$WHITE'\1\\\'$NC'/'   \
-        -e 's/^\#.*|\([0-9]:\)/\1/' $LSN > $NTC
+        -e 's/\#.*|\([0-9]:\)/\1/' $LSN > $NTC
 
     rm $LSN
     while read note; do
