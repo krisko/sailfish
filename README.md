@@ -6,6 +6,12 @@
 * delete notes
 * move notes
 * change note color
+* use color picker to pick custom color (in my case it's kcolorchooser)
+
+**What does not work:**
+* you cannot add multiline notes, only oneliners at the moment
+* removing multiple notes at once is not implemented
+* color printing works only with colors listed in help (can be extended)
 
 ![](/01_help.png)
 
