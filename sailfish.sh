@@ -144,7 +144,7 @@ delN() {
     [[ $1 =~ ^[0-9]+$ ]] &&
         listN $1 ||
         msg error "Invalid ID"
-    # wait befor deleting
+    # wait before deleting
     w8 5
 
     ssh $USER@$IP "\
