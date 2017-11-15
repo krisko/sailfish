@@ -36,12 +36,15 @@ setColor() {
     case $1 in
         black)   COLOR="#000000";;
         red)     COLOR="#cc0000";;
-        green)   COLOR="#00cc00";;
-        yellow)  COLOR="#cccc00";;
-        blue)    COLOR="#0000cc";;
-        magenta) COLOR="#cc00cc";;
-        cyan)    COLOR="#00cccc";;
+        green)   COLOR="#00b315";;
+        yellow)  COLOR="#ccbb00";;
+        blue)    COLOR="#0016de";;
+        magenta) COLOR="#bb00cc";;
+        cyan)    COLOR="#00bf9f";;
         white)   COLOR="#ffffff";;
+        orange)  COLOR="#cc7700";;
+        lgreen)  COLOR="#88cc00";;
+        lblue)   COLOR="#005fcc";;
         pick)    COLOR=$(kcolorchooser --print);;
         *) unset COLOR;;
     esac
@@ -91,7 +94,7 @@ w8() {
 # interactively choose color
 chColor() {
     echo "Choose color: ";
-    select COLOR in black red green yellow blue magenta cyan white; do
+    select COLOR in black red green lgreen orange yellow blue lblue magenta cyan white pick; do
         setColor $COLOR
         break
     done;
@@ -121,13 +124,22 @@ listN() {
         $SQL $DB \"select color,pagenr,body from notes ORDER by pagenr ASC;\";" | sed 's/\(^.*|\)\([0-9]*\)|/\n\r\1\2:\n\r/' > $LSN
 
     setColor ls
+
     sed -e 's/\#000000|\([0-9]:\)/\\\'$BLACK'\1\\\'$NC'/'   \
         -e 's/\#cc0000|\([0-9]:\)/\\\'$RED'\1\\\'$NC'/'     \
         -e 's/\#00cc00|\([0-9]:\)/\\\'$GREEN'\1\\\'$NC'/'   \
+        -e 's/\#00b315|\([0-9]:\)/\\\'$GREEN'\1\\\'$NC'/'   \
+        -e 's/\#88cc00|\([0-9]:\)/\\\'$GREEN'\1\\\'$NC'/'   \
         -e 's/\#cccc00|\([0-9]:\)/\\\'$YELLOW'\1\\\'$NC'/'  \
+        -e 's/\#ccbb00|\([0-9]:\)/\\\'$YELLOW'\1\\\'$NC'/'  \
+        -e 's/\#cc7700|\([0-9]:\)/\\\'$YELLOW'\1\\\'$NC'/'  \
         -e 's/\#0000cc|\([0-9]:\)/\\\'$BLUE'\1\\\'$NC'/'    \
+        -e 's/\#0016de|\([0-9]:\)/\\\'$BLUE'\1\\\'$NC'/'    \
+        -e 's/\#005fcc|\([0-9]:\)/\\\'$BLUE'\1\\\'$NC'/'    \
         -e 's/\#cc00cc|\([0-9]:\)/\\\'$MAGENTA'\1\\\'$NC'/' \
+        -e 's/\#bb00cc|\([0-9]:\)/\\\'$MAGENTA'\1\\\'$NC'/' \
         -e 's/\#00cccc|\([0-9]:\)/\\\'$CYAN'\1\\\'$NC'/'    \
+        -e 's/\#00bf9f|\([0-9]:\)/\\\'$CYAN'\1\\\'$NC'/'    \
         -e 's/\#ffffff|\([0-9]:\)/\\\'$WHITE'\1\\\'$NC'/'   \
         -e 's/\#.*|\([0-9]:\)/\1/' $LSN > $NTC
 
@@ -217,3 +229,14 @@ exit 0
 # $ sqlite3 8b63c31a7656301b3f7bcbbfef8a2b6f.sqlite ".schema notes"
 # CREATE TABLE notes (pagenr INTEGER, color TEXT, body TEXT);
 ##############################################
+# Default Colors from SF OS
+#cc0000|red
+#cc7700|orange
+#ccbb00|yellow
+#88cc00|light green
+#00b315|green
+#00bf9f|cyan
+#005fcc|light blue
+#0016de|blue
+#bb00cc|magenta
+
